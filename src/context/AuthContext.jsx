@@ -21,18 +21,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const logout = () => {
+    console.log('🚪 Fazendo logout...');
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
+    console.log('✅ Logout concluído');
   };
 
   // Configurar axios com token e interceptor
   useEffect(() => {
+    console.log('🔐 AuthContext: Token atual:', token ? 'Existe' : 'Não existe');
+    
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log('🔐 AuthContext: Header Authorization configurado');
       loadUser();
     } else {
+      console.log('🔐 AuthContext: Sem token, não carregando usuário');
       setLoading(false);
     }
 
@@ -41,7 +47,7 @@ export const AuthProvider = ({ children }) => {
       (response) => response,
       (error) => {
         if (error.response?.status === 401 && token) {
-          console.log('Token inválido ou expirado. Fazendo logout...');
+          console.log('❌ Token inválido ou expirado. Fazendo logout...');
           logout();
         }
         return Promise.reject(error);
@@ -55,10 +61,12 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async () => {
     try {
-      const response = await axios.get('/api/auth/me');
+      console.log('🔐 Carregando dados do usuário...');
+      const response = await axios.get('/auth/me');
+      console.log('✅ Usuário carregado:', response.data.user);
       setUser(response.data.user);
     } catch (error) {
-      console.error('Erro ao carregar usuário:', error);
+      console.error('❌ Erro ao carregar usuário:', error.response?.status, error.message);
       logout();
     } finally {
       setLoading(false);
@@ -67,15 +75,20 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+      console.log('🔐 Tentando fazer login com:', email);
+      const response = await axios.post('/auth/login', { email, password });
+      console.log('✅ Login bem-sucedido, resposta:', response.data);
+      
       const { token, user } = response.data;
       
       localStorage.setItem('token', token);
       setToken(token);
       setUser(user);
       
+      console.log('✅ Token salvo e estado atualizado');
       return { success: true };
     } catch (error) {
+      console.error('❌ Erro no login:', error.response?.status, error.response?.data);
       return { 
         success: false, 
         message: error.response?.data?.message || 'Erro ao fazer login. Tente novamente.'
@@ -85,15 +98,20 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (userData) => {
     try {
-      const response = await axios.post('/api/auth/signup', userData);
+      console.log('🔐 Tentando criar conta com:', userData.email);
+      const response = await axios.post('/auth/signup', userData);
+      console.log('✅ Conta criada com sucesso, resposta:', response.data);
+      
       const { token, user } = response.data;
       
       localStorage.setItem('token', token);
       setToken(token);
       setUser(user);
       
+      console.log('✅ Token salvo e estado atualizado');
       return { success: true };
     } catch (error) {
+      console.error('❌ Erro ao criar conta:', error.response?.status, error.response?.data);
       return { 
         success: false, 
         message: error.response?.data?.message || 'Erro ao criar conta. Tente novamente.'

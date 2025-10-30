@@ -701,7 +701,7 @@ const Home = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/users/discover?filter=${activeTab}`);
+      const response = await axios.get(`/users/discover?filter=${activeTab}`);
       setUsers(response.data);
       
       // Mostrar feedback visual quando filtro está ativo
@@ -746,7 +746,7 @@ const Home = () => {
     await new Promise(resolve => setTimeout(resolve, 300));
     
     try {
-      const response = await axios.post('/api/matches/swipe', {
+      const response = await axios.post('/matches/swipe', {
         targetUserId: userId,
         action
       });

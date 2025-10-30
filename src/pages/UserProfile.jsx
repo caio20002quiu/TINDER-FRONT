@@ -323,7 +323,7 @@ const UserProfile = () => {
   const loadUserProfile = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/users/${userId}`);
+      const response = await axios.get(`/users/${userId}`);
       setUser(response.data);
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -339,7 +339,7 @@ const UserProfile = () => {
 
     try {
       setActionLoading(true);
-      const response = await axios.post('/api/matches/swipe', {
+      const response = await axios.post('/matches/swipe', {
         targetUserId: userId,
         action // 'like', 'superlike', or 'pass'
       });

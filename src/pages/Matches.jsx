@@ -387,7 +387,7 @@ const Matches = () => {
   const loadMatches = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/matches?filter=${activeTab}`);
+      const response = await axios.get(`/matches?filter=${activeTab}`);
       setMatches(response.data);
     } catch (error) {
       console.error('Erro ao carregar matches:', error);
