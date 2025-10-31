@@ -650,6 +650,14 @@ const Home = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [matchedUser, setMatchedUser] = useState(null);
   const [commonInterests, setCommonInterests] = useState([]);
+  
+  // Debug: Log quando matchedUser muda
+  useEffect(() => {
+    if (matchedUser) {
+      console.log('🎉 matchedUser foi definido:', matchedUser);
+      console.log('📋 commonInterests:', commonInterests);
+    }
+  }, [matchedUser, commonInterests]);
   const [loading, setLoading] = useState(true);
   const [swipeDirection, setSwipeDirection] = useState(null);
   const [showToast, setShowToast] = useState(false);
@@ -835,9 +843,22 @@ const Home = () => {
       
       if (response.data.match) {
         console.log('✅ Match detectado! Exibindo popup...');
-        setMatchedUser(response.data.matchedUser);
-        setCommonInterests(response.data.commonInterests || []);
-        hadMatch = true;
+        console.log('📋 Dados do match:', {
+          matchedUser: response.data.matchedUser,
+          commonInterests: response.data.commonInterests,
+          totalCommonInterests: response.data.totalCommonInterests
+        });
+        
+        // Garantir que os dados estão corretos
+        if (response.data.matchedUser) {
+          setMatchedUser(response.data.matchedUser);
+          setCommonInterests(response.data.commonInterests || []);
+          hadMatch = true;
+          console.log('🎉 Estado atualizado - popup deve aparecer agora!');
+        } else {
+          console.error('❌ Erro: matchedUser não está presente na resposta');
+        }
+        
         // Não avançar para o próximo card imediatamente quando há match
         setSwipeDirection(null);
         return;
@@ -1187,17 +1208,19 @@ const Home = () => {
         </Toast>
       )}
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {matchedUser && (
           <MatchPopup
-            key={matchedUser._id || matchedUser.id}
+            key={`match-${matchedUser._id || matchedUser.id || Date.now()}`}
             user={matchedUser}
             commonInterests={commonInterests}
             onClose={() => {
+              console.log('🔒 Fechando popup de match');
               setMatchedUser(null);
               setCommonInterests([]);
             }}
             onMessage={() => {
+              console.log('💬 Indo para mensagens');
               setMatchedUser(null);
               setCommonInterests([]);
               navigate('/matches');
@@ -1205,6 +1228,23 @@ const Home = () => {
           />
         )}
       </AnimatePresence>
+      
+      {/* Debug: Mostrar estado do matchedUser */}
+      {matchedUser && (
+        <div style={{
+          position: 'fixed',
+          top: '10px',
+          right: '10px',
+          background: 'rgba(0,0,0,0.8)',
+          color: 'white',
+          padding: '10px',
+          borderRadius: '5px',
+          fontSize: '12px',
+          zIndex: 9999
+        }}>
+          DEBUG: matchedUser existe!
+        </div>
+      )}
 
       <AnimatePresence>
         {showLogoutModal && (

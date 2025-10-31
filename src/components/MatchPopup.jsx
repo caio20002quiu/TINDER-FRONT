@@ -150,7 +150,15 @@ const KeepDatingButton = styled(Button)`
 `;
 
 const MatchPopup = ({ user, commonInterests, onClose, onMessage }) => {
-  if (!user) return null;
+  if (!user) {
+    console.log('⚠️ MatchPopup: user não fornecido');
+    return null;
+  }
+  
+  console.log('🎉 MatchPopup renderizando com:', {
+    userName: user.firstName,
+    commonInterests: commonInterests?.length || 0
+  });
   
   return (
     <Overlay
