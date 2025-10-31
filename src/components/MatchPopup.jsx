@@ -3,17 +3,18 @@ import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Overlay = styled(motion.div)`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.95) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
   padding: 20px;
+  pointer-events: auto !important;
 `;
 
 const PopupContainer = styled(motion.div)`
@@ -157,6 +158,7 @@ const MatchPopup = ({ user, commonInterests, onClose, onMessage }) => {
   
   console.log('🎉 MatchPopup renderizando com:', {
     userName: user.firstName,
+    userId: user._id || user.id,
     commonInterests: commonInterests?.length || 0
   });
   
@@ -165,6 +167,7 @@ const MatchPopup = ({ user, commonInterests, onClose, onMessage }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
       onClick={onClose}
     >
         <PopupContainer

@@ -1208,26 +1208,29 @@ const Home = () => {
         </Toast>
       )}
 
-      <AnimatePresence mode="wait">
-        {matchedUser && (
-          <MatchPopup
-            key={`match-${matchedUser._id || matchedUser.id || Date.now()}`}
-            user={matchedUser}
-            commonInterests={commonInterests}
-            onClose={() => {
-              console.log('🔒 Fechando popup de match');
-              setMatchedUser(null);
-              setCommonInterests([]);
-            }}
-            onMessage={() => {
-              console.log('💬 Indo para mensagens');
-              setMatchedUser(null);
-              setCommonInterests([]);
-              navigate('/matches');
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Match Popup - Deve aparecer quando há match */}
+      {matchedUser && (
+        <MatchPopup
+          key={`match-${matchedUser._id || matchedUser.id || Date.now()}`}
+          user={matchedUser}
+          commonInterests={commonInterests}
+          onClose={() => {
+            console.log('🔒 Fechando popup de match');
+            setMatchedUser(null);
+            setCommonInterests([]);
+            // Avançar para o próximo card após fechar o popup
+            if (currentIndex < users.length - 1) {
+              setCurrentIndex(currentIndex + 1);
+            }
+          }}
+          onMessage={() => {
+            console.log('💬 Indo para mensagens');
+            setMatchedUser(null);
+            setCommonInterests([]);
+            navigate('/matches');
+          }}
+        />
+      )}
       
       {/* Debug: Mostrar estado do matchedUser */}
       {matchedUser && (
