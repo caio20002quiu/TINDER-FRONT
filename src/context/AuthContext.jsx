@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
     console.log('✅ Logout concluído');
   };
 
-  // Configurar axios com token e interceptor
+  // Configurar axios com token
   useEffect(() => {
     console.log('🔐 AuthContext: Token atual:', token ? 'Existe' : 'Não existe');
     
@@ -39,16 +39,23 @@ export const AuthProvider = ({ children }) => {
       loadUser();
     } else {
       console.log('🔐 AuthContext: Sem token, não carregando usuário');
+      delete axios.defaults.headers.common['Authorization'];
       setLoading(false);
     }
+  }, [token]);
 
-    // Interceptor para capturar erros 401
+  // Interceptor para capturar erros 401 (configurado uma vez)
+  useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401 && token) {
-          console.log('❌ Token inválido ou expirado. Fazendo logout...');
-          logout();
+        // Se receber 401, significa que o token está inválido/expirado
+        if (error.response?.status === 401) {
+          const currentToken = localStorage.getItem('token');
+          if (currentToken) {
+            console.log('❌ Token inválido ou expirado. Fazendo logout...');
+            logout();
+          }
         }
         return Promise.reject(error);
       }
@@ -57,7 +64,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.response.eject(interceptor);
     };
-  }, [token]);
+  }, []); // Apenas uma vez na montagem
 
   const loadUser = async () => {
     try {
@@ -81,7 +88,14 @@ export const AuthProvider = ({ children }) => {
       
       const { token, user } = response.data;
       
+      // Salvar token
       localStorage.setItem('token', token);
+      
+      // Configurar header imediatamente (antes de atualizar o estado)
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log('🔐 Header Authorization configurado no login');
+      
+      // Atualizar estado (isso vai disparar o useEffect também)
       setToken(token);
       setUser(user);
       
@@ -104,7 +118,14 @@ export const AuthProvider = ({ children }) => {
       
       const { token, user } = response.data;
       
+      // Salvar token
       localStorage.setItem('token', token);
+      
+      // Configurar header imediatamente (antes de atualizar o estado)
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log('🔐 Header Authorization configurado no signup');
+      
+      // Atualizar estado (isso vai disparar o useEffect também)
       setToken(token);
       setUser(user);
       

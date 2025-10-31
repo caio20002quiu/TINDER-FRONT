@@ -12,7 +12,7 @@ const Overlay = styled(motion.div)`
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
   padding: 20px;
 `;
 
@@ -150,17 +150,20 @@ const KeepDatingButton = styled(Button)`
 `;
 
 const MatchPopup = ({ user, commonInterests, onClose, onMessage }) => {
+  if (!user) return null;
+  
   return (
-    <AnimatePresence>
-      <Overlay
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
+    <Overlay
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
         <PopupContainer
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', duration: 0.5 }}
+          onClick={(e) => e.stopPropagation()}
         >
           <OrbitContainer>
             {/* Órbitas animadas */}
@@ -370,7 +373,6 @@ const MatchPopup = ({ user, commonInterests, onClose, onMessage }) => {
           </KeepDatingButton>
         </PopupContainer>
       </Overlay>
-    </AnimatePresence>
   );
 };
 

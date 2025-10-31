@@ -660,6 +660,8 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState('todos');
   const cardRef = useRef(null);
   const menuRef = useRef(null);
+  const usersRef = useRef([]);
+  const currentIndexRef = useRef(0);
 
   useEffect(() => {
     loadUsers();
@@ -668,6 +670,30 @@ const Home = () => {
   useEffect(() => {
     loadUsers();
     setCurrentIndex(0); // Resetar para o primeiro card quando mudar de aba
+    currentIndexRef.current = 0;
+  }, [activeTab]);
+
+  // Atualizar refs quando o estado mudar
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
+
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  // Atualização automática para a aba "todos"
+  useEffect(() => {
+    if (activeTab === 'todos') {
+      // Configurar intervalo para atualizar a cada 30 segundos
+      const interval = setInterval(() => {
+        loadUsers(true); // Modo silencioso para não mostrar loading
+      }, 30000); // 30 segundos
+
+      // Limpar intervalo quando a aba mudar ou componente desmontar
+      return () => clearInterval(interval);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Fechar menu ao clicar fora
@@ -698,14 +724,49 @@ const Home = () => {
     console.log('showLogoutModal changed:', showLogoutModal);
   }, [showLogoutModal]);
 
-  const loadUsers = async () => {
+  const loadUsers = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
+      
+      // Debug: Verificar se o token está sendo enviado
+      const authHeader = axios.defaults.headers.common['Authorization'];
+      console.log('📤 Carregando usuários:', {
+        filter: activeTab,
+        hasAuthHeader: !!authHeader,
+        authHeader: authHeader ? authHeader.substring(0, 20) + '...' : 'Não configurado'
+      });
+      
       const response = await axios.get(`/users/discover?filter=${activeTab}`);
-      setUsers(response.data);
+      const newUsers = response.data;
+      
+      // Usar refs para obter valores mais recentes
+      const currentUsers = silent ? usersRef.current : users;
+      const currentIdx = silent ? currentIndexRef.current : currentIndex;
+      
+      // Verificar se há novos usuários comparando IDs
+      const existingIds = currentUsers.map(u => u._id || u.id);
+      const newUserIds = newUsers.map(u => u._id || u.id);
+      const hasNewUsers = newUsers.length > 0 && (
+        currentUsers.length === 0 || 
+        newUserIds.some(id => !existingIds.includes(id))
+      );
+      
+      // Atualizar lista apenas se houver novos usuários ou se a lista mudou
+      if (hasNewUsers || newUsers.length !== currentUsers.length || !silent) {
+        setUsers(newUsers);
+        usersRef.current = newUsers;
+        
+        // Se houver novos usuários e estivermos no final da lista, resetar para o início
+        if (hasNewUsers && currentIdx >= currentUsers.length - 1) {
+          setCurrentIndex(0);
+          currentIndexRef.current = 0;
+        }
+      }
       
       // Mostrar feedback visual quando filtro está ativo
-      if (response.data.length === 0) {
+      if (newUsers.length === 0 && !silent) {
         let message = '';
         switch (activeTab) {
           case 'online':
@@ -727,16 +788,30 @@ const Home = () => {
       }
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
-      setToastMessage('❌ Erro ao carregar perfis');
-      setToastType('pass');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
+      if (!silent) {
+        setToastMessage('❌ Erro ao carregar perfis');
+        setToastType('pass');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   const handleSwipe = async (direction, userId, isSuperLike = false) => {
+    // Validar userId antes de continuar
+    if (!userId) {
+      console.error('❌ userId é obrigatório para fazer swipe');
+      setToastMessage('❌ Erro: ID do usuário inválido');
+      setToastType('pass');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+      return;
+    }
+    
     const action = isSuperLike ? 'superlike' : (direction === 'right' ? 'like' : 'pass');
     
     // Definir direção da animação
@@ -745,15 +820,27 @@ const Home = () => {
     // Aguardar animação completar
     await new Promise(resolve => setTimeout(resolve, 300));
     
+    let hadMatch = false;
+    
     try {
+      console.log('📤 Enviando swipe:', { targetUserId: userId, action });
+      
       const response = await axios.post('/matches/swipe', {
         targetUserId: userId,
         action
       });
 
+      // Debug: Log da resposta
+      console.log('🔍 Resposta do swipe:', response.data);
+      
       if (response.data.match) {
+        console.log('✅ Match detectado! Exibindo popup...');
         setMatchedUser(response.data.matchedUser);
         setCommonInterests(response.data.commonInterests || []);
+        hadMatch = true;
+        // Não avançar para o próximo card imediatamente quando há match
+        setSwipeDirection(null);
+        return;
       } else if (response.data.mutualLike && !response.data.match) {
         // Ambos se curtiram mas não têm interesses em comum
         setToastMessage(`💔 ${response.data.message}`);
@@ -774,15 +861,55 @@ const Home = () => {
         setTimeout(() => setShowToast(false), 2000);
       }
     } catch (error) {
-      console.error('Erro ao fazer swipe:', error);
-      setToastMessage('❌ Erro ao processar ação. Tente novamente.');
+      console.error('❌ Erro ao fazer swipe:', error);
+      
+      // Obter mensagem de erro específica do servidor
+      let errorMessage = '❌ Erro ao processar ação. Tente novamente.';
+      
+      if (error.response) {
+        // Erro do servidor (400, 404, 500, etc)
+        const serverMessage = error.response.data?.message;
+        
+        if (error.response.status === 400) {
+          // Bad Request - mostrar mensagem específica do servidor
+          errorMessage = serverMessage || '❌ Requisição inválida. Você já interagiu com este usuário?';
+        } else if (error.response.status === 404) {
+          errorMessage = '❌ Usuário não encontrado';
+        } else if (error.response.status === 401) {
+          errorMessage = '❌ Sessão expirada. Faça login novamente';
+          // Redirecionar para login após 2 segundos
+          setTimeout(() => {
+            logout();
+            navigate('/login');
+          }, 2000);
+        } else {
+          errorMessage = serverMessage || '❌ Erro no servidor. Tente novamente.';
+        }
+        
+        console.error('📋 Detalhes do erro:', {
+          status: error.response.status,
+          message: serverMessage,
+          data: error.response.data
+        });
+      } else if (error.request) {
+        // Erro de rede
+        errorMessage = '❌ Erro de conexão. Verifique sua internet.';
+        console.error('📡 Erro de rede:', error.request);
+      } else {
+        // Outro erro
+        console.error('⚠️ Erro desconhecido:', error.message);
+      }
+      
+      setToastMessage(errorMessage);
       setToastType('pass');
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
+      setTimeout(() => setShowToast(false), 3000);
     }
 
-    // Próximo card
-    setCurrentIndex(currentIndex + 1);
+    // Próximo card (apenas se não houve match)
+    if (!hadMatch) {
+      setCurrentIndex(currentIndex + 1);
+    }
     setSwipeDirection(null);
   };
 
@@ -1060,21 +1187,24 @@ const Home = () => {
         </Toast>
       )}
 
-      {matchedUser && (
-        <MatchPopup
-          user={matchedUser}
-          commonInterests={commonInterests}
-          onClose={() => {
-            setMatchedUser(null);
-            setCommonInterests([]);
-          }}
-          onMessage={() => {
-            setMatchedUser(null);
-            setCommonInterests([]);
-            navigate('/matches');
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {matchedUser && (
+          <MatchPopup
+            key={matchedUser._id || matchedUser.id}
+            user={matchedUser}
+            commonInterests={commonInterests}
+            onClose={() => {
+              setMatchedUser(null);
+              setCommonInterests([]);
+            }}
+            onMessage={() => {
+              setMatchedUser(null);
+              setCommonInterests([]);
+              navigate('/matches');
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showLogoutModal && (
